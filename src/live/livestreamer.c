@@ -442,11 +442,17 @@ void cLiveStreamer::sendStreamPacket(sStreamPacket *pkt)
   m_streamHeader.id       = htonl(streamid);                // Stream ID
   m_streamHeader.duration = htonl(pkt->duration);           // Duration
 
-  *(int64_t*)&m_streamHeader.dts = __cpu_to_be64(pkt->dts); // DTS
-  *(int64_t*)&m_streamHeader.pts = __cpu_to_be64(pkt->pts); // PTS
+  uint64_t dts = __cpu_to_be64(pkt->dts);
+  uint64_t pts = __cpu_to_be64(pkt->pts);
+ 
+  m_streamHeader.dts[1] = (dts & 0x00000000FFFFFFFFLL);       // DTS LOW
+  m_streamHeader.dts[0] = (dts & 0xFFFFFFFF00000000LL) >> 32; // DTS HIGH
 
-  m_streamHeader.length   = htonl(pkt->size);               // Data length
+  m_streamHeader.pts[1] = (pts & 0x00000000FFFFFFFFLL);       // PTS LOW
+  m_streamHeader.pts[0] = (pts & 0xFFFFFFFF00000000LL) >> 32; // PTS HIGH
 
+  m_streamHeader.length = htonl(pkt->size);                 // Data length
+ 
   DEBUGLOG("sendStreamPacket (type: %i)", type);
 
   if(m_Socket->write(&m_streamHeader, sizeof(m_streamHeader), 2000, true) > 0)

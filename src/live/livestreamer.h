@@ -89,9 +89,9 @@ private:
     uint32_t channel;
     uint32_t opcode;
     uint32_t id;
+    uint32_t pts[2];
+    uint32_t dts[2];
     uint32_t duration;
-    uint8_t pts[sizeof(int64_t)];
-    uint8_t dts[sizeof(int64_t)];
     uint32_t length;
   } m_streamHeader;
 
