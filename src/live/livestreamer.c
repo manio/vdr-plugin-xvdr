@@ -453,22 +453,29 @@ void cLiveStreamer::sendStreamPacket(sStreamPacket *pkt)
 
   m_streamHeader.length = htonl(pkt->size);                 // Data length
  
+  // if a audio or video packet was sent, the signal is restored
+  if(type > stNone && type < stDVBSUB) {
+    if(m_SignalLost) {
+      INFOLOG("signal restored");
+      sendStatus(XVDR_STREAM_STATUS_SIGNALRESTORED);
+      m_SignalLost = false;
+      m_IFrameSeen = false;
+      m_streamReady = false;
+      m_requestStreamChange = true;
+      return;
+    }
+    m_last_tick.Set(0);
+  }
+  else if(m_SignalLost)
+    return;
+
+  if(m_SignalLost)
+    return;
+
   DEBUGLOG("sendStreamPacket (type: %i)", type);
 
   if(m_Socket->write(&m_streamHeader, sizeof(m_streamHeader), 2000, true) > 0)
-  {
-    if(m_Socket->write(pkt->data, pkt->size, 2000) > 0) {
-      // if a audio or video packet was sent, the signal is restored
-      if(type > stNone && type < stDVBSUB) {
-        if(m_SignalLost) {
-          INFOLOG("signal restored");
-          sendStatus(XVDR_STREAM_STATUS_SIGNALRESTORED);
-          m_SignalLost = false;
-        }
-        m_last_tick.Set(0);
-      }
-    }
-  }
+    m_Socket->write(pkt->data, pkt->size, 2000);
 }
 
 void cLiveStreamer::sendStreamChange()
