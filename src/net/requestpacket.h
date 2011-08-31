@@ -47,7 +47,6 @@ public:
   uint32_t  extract_U32();
   uint64_t  extract_U64();
   int32_t   extract_S32();
-  double    extract_Double();
 
   bool      end();
 

@@ -52,7 +52,6 @@ public:
   bool add_S32(int32_t l);
   bool add_U8(uint8_t c);
   bool add_U64(uint64_t ull);
-  bool add_double(double d);
 
   uint8_t* getPtr() { return buffer; }
   uint32_t getLen() { return bufUsed; }

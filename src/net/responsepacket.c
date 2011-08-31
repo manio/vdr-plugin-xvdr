@@ -192,17 +192,6 @@ bool cResponsePacket::add_U64(uint64_t ull)
   return true;
 }
 
-bool cResponsePacket::add_double(double d)
-{
-  if (!checkExtend(sizeof(double))) return false;
-  uint64_t ull;
-  memcpy(&ull,&d,sizeof(double));
-  *(uint64_t*)&buffer[bufUsed] = __cpu_to_be64(ull);
-  bufUsed += sizeof(uint64_t);
-  return true;
-}
-
-
 bool cResponsePacket::checkExtend(uint32_t by)
 {
   if ((bufUsed + by) < bufSize) return true;

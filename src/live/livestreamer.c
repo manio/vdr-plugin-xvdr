@@ -502,7 +502,7 @@ void cLiveStreamer::sendStreamChange()
         resp->add_U32(m_Streams[idx]->GetFpsRate());
         resp->add_U32(m_Streams[idx]->GetHeight());
         resp->add_U32(m_Streams[idx]->GetWidth());
-        resp->add_double(m_Streams[idx]->GetAspect());
+        resp->add_S32((int32_t)(m_Streams[idx]->GetAspect()*1000.0));
         DEBUGLOG("MPEG2VIDEO: %i (index: %i)", streamid, idx);
       }
       else if (m_Streams[idx]->Type() == stAC3)
@@ -518,7 +518,7 @@ void cLiveStreamer::sendStreamChange()
         resp->add_U32(m_Streams[idx]->GetFpsRate());
         resp->add_U32(m_Streams[idx]->GetHeight());
         resp->add_U32(m_Streams[idx]->GetWidth());
-        resp->add_double(m_Streams[idx]->GetAspect());
+        resp->add_S32((int32_t)(m_Streams[idx]->GetAspect()*1000.0));
         DEBUGLOG("H264: %i (index: %i)", streamid, idx);
       }
       else if (m_Streams[idx]->Type() == stDVBSUB)
@@ -769,7 +769,7 @@ void cLiveStreamer::sendStreamInfo()
         resp->add_U32(m_Streams[idx]->GetFpsRate());
         resp->add_U32(m_Streams[idx]->GetHeight());
         resp->add_U32(m_Streams[idx]->GetWidth());
-        resp->add_double(m_Streams[idx]->GetAspect());
+        resp->add_S32((int32_t)(m_Streams[idx]->GetAspect()*1000.0));
       }
       else if (m_Streams[idx]->Type() == stDVBSUB)
       {
