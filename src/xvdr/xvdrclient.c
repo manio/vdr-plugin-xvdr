@@ -1773,8 +1773,8 @@ bool cXVDRClient::processRECORDINGS_Delete() /* OPCODE 104 */
 
 
 /** OPCODE 120 - 139: XVDR network functions for epg access and manipulating */
-
-bool cXVDRClient::processEPG_GetForChannel() /* OPCODE 120 */
+/* i am commenting the following function only to provide a replacement one below (to have clearer diff)
+bool cXVDRClient::processEPG_GetForChannel() /* OPCODE 120 *//*
 {
   uint32_t channelNumber  = 0;
   uint32_t channelUID  = 0;
@@ -1913,8 +1913,137 @@ bool cXVDRClient::processEPG_GetForChannel() /* OPCODE 120 */
   DEBUGLOG("written schedules packet");
 
   return true;
-}
+}*/
 
+/*
+   now is the replaced function
+   main difference is that it iterates through channels and checks if schedules
+   was modified since the given time - if so then it pass it to xbmc addon
+   in other words - it just pass the changes since last update which significantly
+   optimise the whole epg update process
+*/
+bool cXVDRClient::processEPG_GetForChannel() /* OPCODE 120 */
+{
+  const cSchedule *Schedule;
+  cSchedulesLock MutexLock;
+  bool atLeastOneEvent = false;
+  uint32_t thisEventID;
+  uint32_t thisEventTime;
+  uint32_t thisEventDuration;
+  uint32_t thisEventContent;
+  uint32_t thisEventRating;
+  const char* thisEventTitle;
+  const char* thisEventSubTitle;
+  const char* thisEventDescription;
+
+  uint32_t channelNumber  = 0;
+  uint32_t channelUID  = 0;
+
+  if(m_protocolVersion == 1) {
+    channelNumber = m_req->extract_U32();
+  }
+  else {
+    channelUID = m_req->extract_U32();
+  }
+
+  uint32_t startTime      = m_req->extract_U32();
+  uint32_t duration       = m_req->extract_U32();
+  uint32_t since          = m_req->extract_U32();
+  INFOLOG("Wanted data since = %s", *TimeToString(since));
+
+  const cSchedules *Schedules = cSchedules::Schedules(MutexLock);
+  if (!Schedules)
+  {
+    m_resp->add_U32(0);
+    m_resp->finalise();
+    m_socket.write(m_resp->getPtr(), m_resp->getLen());
+    Channels.Unlock();
+
+    DEBUGLOG("written 0 because Schedule!s! = NULL");
+    return true;
+  }
+
+  int i=0;
+  Channels.Lock(false);
+  for (cChannel *channel = Channels.First(); channel; channel = Channels.Next(channel))
+  {
+    Schedule = Schedules->GetSchedule(channel->GetChannelID());
+    if (Schedule && Schedule->Modified()>since)
+    {
+      INFOLOG("schedule modified = %s", *TimeToString(Schedule->Modified()));
+
+      for (const cEvent* event = Schedule->Events()->First(); event; event = Schedule->Events()->Next(event))
+      {
+        thisEventID           = event->EventID();
+        thisEventTitle        = event->Title();
+        thisEventSubTitle     = event->ShortText();
+        thisEventDescription  = event->Description();
+        thisEventTime         = event->StartTime();
+        thisEventDuration     = event->Duration();
+#if defined(USE_PARENTALRATING) || defined(PARENTALRATINGCONTENTVERSNUM)
+        thisEventContent      = event->Contents();
+        thisEventRating       = 0;
+#elif APIVERSNUM >= 10711
+        thisEventContent      = event->Contents();
+        thisEventRating       = event->ParentalRating();
+#else
+        thisEventContent      = 0;
+        thisEventRating       = 0;
+#endif
+
+        //in the past filter
+        if ((thisEventTime + thisEventDuration) < (uint32_t)time(NULL)) continue;
+
+        //start time filter
+        if ((thisEventTime + thisEventDuration) <= startTime) continue;
+
+        //duration filter
+        if (duration != 0 && thisEventTime >= (startTime + duration)) continue;
+
+        if (!thisEventTitle)        thisEventTitle        = "";
+        if (!thisEventSubTitle)     thisEventSubTitle     = "";
+        if (!thisEventDescription)  thisEventDescription  = "";
+
+        if(m_protocolVersion >= 2) {
+          m_resp->add_U32(CreateChannelUID(channel));
+        }
+        else {
+          m_resp->add_U32(channel->Sid());
+        }
+        m_resp->add_U32(thisEventID);
+        m_resp->add_U32(thisEventTime);
+        m_resp->add_U32(thisEventDuration);
+        m_resp->add_U32(thisEventContent);
+        m_resp->add_U32(thisEventRating);
+
+        m_resp->add_String(m_toUTF8.Convert(thisEventTitle));
+        m_resp->add_String(m_toUTF8.Convert(thisEventSubTitle));
+        m_resp->add_String(m_toUTF8.Convert(thisEventDescription));
+
+        atLeastOneEvent = true;
+        i++;
+      }
+    }
+  }
+
+  Channels.Unlock();
+  INFOLOG("Got all changed event data, events = %d", i);
+
+  if (!atLeastOneEvent)
+  {
+    m_resp->add_U32(0);
+    DEBUGLOG("Written 0 because no data");
+  }
+
+  m_resp->finalise();
+  m_resp->compress(m_compressionLevel);
+
+  m_socket.write(m_resp->getPtr(), m_resp->getLen());
+
+  DEBUGLOG("written schedules packet");
+
+  return true;
+}
 
 /** OPCODE 140 - 169: XVDR network functions for channel scanning */
 
